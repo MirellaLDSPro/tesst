@@ -12,6 +12,13 @@ const contatos = [
 ];
 // Rota para listar todos os contatos
 router.get('/', (_req, res) => {
+    const authorizationHeader = _req.headers.authorization;
+    if (!authorizationHeader) {
+        return res.status(401).json({ error: 'Authorization header is missing' });
+    }
+    // Exemplo: Log do token recebido
+    console.log(`Token recebido: ${authorizationHeader}`);
+    res.set('v-cliente', 'valor');
     res.json(contatos);
 });
 // Rota para cadastrar um novo contato
