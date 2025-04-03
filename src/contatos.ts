@@ -1,30 +1,54 @@
 import express, { Request, Response } from 'express';
+import { db } from './firebase';
+
+async function testarFirestore() {
+    try {
+        const docRef = await db.collection('contatos').add({
+            nome: 'Teste',
+            email: 'teste@email.com',
+            criadoEm: new Date().toISOString(),
+        });
+        console.log(`Documento criado com ID: ${docRef.id}`);
+    } catch (error) {
+        console.error('Erro ao testar Firestore:', error);
+    }
+}
+
+testarFirestore();
 
 const router = express.Router();
 
-// Lista de contatos (simulação de banco de dados)
-const contatos = [
-    { id: 1, nome: 'João', email: 'joao@email.com' },
-    { id: 2, nome: 'Maria', email: 'maria@email.com' },
-];
-
 // Rota para listar todos os contatos
-router.get('/', (_req: Request, res: Response) => {// Lê o header "Authorization"
+router.get('/', async (_req: Request, res: Response) => {
+    // Lê o header "Authorization"
     const authorizationHeader = _req.headers.authorization;
 
     if (!authorizationHeader) {
         return res.status(401).json({ error: 'Authorization header is missing' });
     }
 
-    // Exemplo: Log do token recebido
     console.log(`Token recebido: ${authorizationHeader}`);
 
-    res.set('v-cliente', 'valor');
-    res.json(contatos);
+    try {
+        // Busca todos os documentos da coleção "contatos"
+        const contatosSnapshot = await db.collection('contatos').get();
+
+        // Converte os documentos em um array de objetos
+        const contatos = contatosSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+        }));
+
+        // Retorna os contatos como resposta
+        res.status(200).json(contatos);
+    } catch (error) {
+        console.error('Erro ao buscar contatos:', error);
+        res.status(500).json({ error: 'Erro ao buscar contatos' });
+    }
 });
 
 // Rota para cadastrar um novo contato
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
     const { nome, email } = req.body;
 
     if (!nome || !email) {
@@ -32,13 +56,23 @@ router.post('/', (req: Request, res: Response) => {
     }
 
     const novoContato = {
-        id: contatos.length + 1,
         nome,
         email,
+        criadoEm: new Date().toISOString(),
     };
 
-    contatos.push(novoContato);
-    res.status(201).json(novoContato);
+    console.log('Novo contato:', novoContato);
+
+    try {
+        // Salva o contato no Firestore
+        const docRef = await db.collection('contatos').add(novoContato);
+        console.log(`Contato salvo com ID: ${docRef.id}`);
+
+        res.status(201).json({ id: docRef.id, ...novoContato });
+    } catch (error) {
+        console.error('Erro ao salvar contato:', error);
+        res.status(500).json({ error: 'Erro ao salvar contato' });
+    }
 });
 
 export default router;
